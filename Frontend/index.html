@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisiSign - Deteksi Bahasa Isyarat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <script src="js/hands_detection.js" defer></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            purple: '#6366f1',      // Indigo 500
+                            purple_light: '#e0e7ff', // Indigo 100
+                            brand_purple_dark: '#4f46e5', // Indigo 600
+                            blue: '#3b82f6',        // Blue 500
+                            blue_light: '#dbeafe'   // Blue 100
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7ff 0%, #f0f4ff 50%, #e8ecff 100%);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .bg-blob-purple {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(255, 255, 255, 0) 70%);
+            top: 50px;
+            left: -200px;
+            z-index: -1;
+            border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .bg-blob-blue {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, rgba(255, 255, 255, 0) 70%);
+            bottom: 100px;
+            right: -100px;
+            z-index: -1;
+            border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+            animation: float 10s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(30px); }
+        }
+
+        .hand-glow {
+            filter: drop-shadow(0 0 30px rgba(99, 102, 241, 0.3));
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.3)); }
+            50% { filter: drop-shadow(0 0 40px rgba(99, 102, 241, 0.5)); }
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+
+<body class="text-slate-700 antialiased overflow-x-hidden relative">
+
+    <div class="bg-blob-purple"></div>
+    <div class="bg-blob-blue"></div>
+
+    <nav class="w-full bg-white/70 backdrop-blur-xl sticky top-0 z-50 border-b border-slate-200/50 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-2 cursor-pointer transition transform hover:scale-[1.02]" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+                <div class="w-10 h-10 bg-gradient-to-br from-brand-purple to-brand-blue rounded-xl flex items-center justify-center shadow-md shadow-indigo-200">
+                    <i class="fa-solid fa-hand-sparkles text-white text-lg"></i>
+                </div>
+                <div class="flex flex-col leading-none">
+                    <span class="text-xl font-extrabold text-slate-900 tracking-tight">VisiSign</span>
+                    <span class="text-[11px] font-bold text-indigo-500 uppercase tracking-wider">AI Project</span>
+                </div>
+            </div>
+
+            <div id="nav-desktop" class="hidden md:flex items-center gap-8 text-[14px] font-bold text-slate-600">
+                <a href="#beranda" class="hover:text-brand-purple transition-all duration-200 border-b-2 border-transparent hover:border-brand-purple py-1">Beranda</a>
+                <a href="#deteksi" class="hover:text-brand-purple transition-all duration-200 border-b-2 border-transparent hover:border-brand-purple py-1">Deteksi</a>
+                <a href="#fitur" class="hover:text-brand-purple transition-all duration-200 border-b-2 border-transparent hover:border-brand-purple py-1">Fitur</a>
+                <a href="#panduan" class="hover:text-brand-purple transition-all duration-200 border-b-2 border-transparent hover:border-brand-purple py-1">Panduan</a>
+                <a href="#tentang" class="hover:text-brand-purple transition-all duration-200 border-b-2 border-transparent hover:border-brand-purple py-1">Tentang</a>
+            </div>
+
+            <button id="btn-hamburger" class="block md:hidden text-slate-700 hover:text-brand-purple transition focus:outline-none">
+                <i class="fa-solid fa-bars text-2xl"></i>
+            </button>
+        </div>
+
+        <div id="nav-mobile" class="hidden md:hidden bg-white/95 backdrop-blur-xl border-b border-slate-200 px-6 py-4 space-y-3 font-semibold text-slate-700 absolute w-full left-0 shadow-lg">
+            <a href="#beranda" class="mobile-nav-link block py-2 hover:text-brand-purple border-b border-slate-50">Beranda</a>
+            <a href="#deteksi" class="mobile-nav-link block py-2 hover:text-brand-purple border-b border-slate-50">Deteksi</a>
+            <a href="#fitur" class="mobile-nav-link block py-2 hover:text-brand-purple border-b border-slate-50">Fitur</a>
+            <a href="#panduan" class="mobile-nav-link block py-2 hover:text-brand-purple border-b border-slate-50">Panduan</a>
+            <a href="#tentang" class="mobile-nav-link block py-2 hover:text-brand-purple">Tentang</a>
+        </div>
+    </nav>
+
+    <section id="beranda" class="max-w-7xl mx-auto px-6 pt-16 pb-24 scroll-mt-24">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div class="space-y-8 animate-fade-in">
+                <div class="space-y-4">
+                    <h1 class="text-5xl md:text-7xl font-black tracking-tight leading-tight">
+                        <span class="text-slate-900">Pahami Isyarat,</span><br>
+                        <span class="bg-gradient-to-r from-brand-purple to-brand-blue bg-clip-text text-transparent">Hubungkan Dunia.</span>
+                    </h1>
+                </div>
+                <p class="text-slate-600 text-lg leading-relaxed max-w-lg">
+                    VisiSign adalah sistem deteksi bahasa isyarat cerdas berbasis kecerdasan buatan (*AI*) yang menerjemahkan pola gerakan tangan terisolasi menjadi informasi teks secara real-time.
+                </p>
+                <div class="pt-2">
+                    <a href="#deteksi" class="inline-flex px-8 py-4 bg-brand-purple text-white font-bold rounded-full shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 hover:bg-indigo-600 transform hover:-translate-y-0.5 transition-all duration-200 items-center gap-2">
+                        <i class="fa-solid fa-video"></i> Mulai Aplikasi Deteksi
+                    </a>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-center relative">
+                <div class="absolute inset-0 bg-gradient-to-br from-brand-purple/20 to-brand-blue/20 rounded-3xl blur-2xl"></div>
+                <div class="relative w-full aspect-square max-w-sm">
+                    <div class="absolute inset-0 bg-gradient-to-br from-brand-purple/30 to-brand-blue/30 rounded-full"></div>
+                    <svg class="w-full h-full hand-glow" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+                        <ellipse cx="100" cy="200" rx="45" ry="60" fill="#ffffff" opacity="0.9" />
+                        <ellipse cx="60" cy="170" rx="18" ry="45" fill="#ffffff" opacity="0.9" transform="rotate(-30 60 170)" />
+                        <circle cx="45" cy="140" r="12" fill="#ffffff" opacity="0.85" />
+                        <rect x="85" y="80" width="16" height="120" rx="8" fill="#ffffff" opacity="0.9" />
+                        <circle cx="93" cy="75" r="10" fill="#ffffff" opacity="0.85" />
+                        <rect x="105" y="60" width="16" height="140" rx="8" fill="#ffffff" opacity="0.9" />
+                        <circle cx="113" cy="55" r="10" fill="#ffffff" opacity="0.85" />
+                        <rect x="125" y="80" width="16" height="120" rx="8" fill="#ffffff" opacity="0.9" />
+                        <circle cx="133" cy="75" r="10" fill="#ffffff" opacity="0.85" />
+                        <rect x="145" y="100" width="14" height="100" rx="7" fill="#ffffff" opacity="0.9" />
+                        <circle cx="152" cy="95" r="9" fill="#ffffff" opacity="0.85" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="deteksi" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 scroll-mt-24">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
+                Mulai <span class="text-brand-purple">Deteksi Real-Time</span>
+            </h2>
+            <p class="text-slate-600 mt-3 text-lg">Posisikan tangan Anda pada area tangkapan sensor kamera di bawah ini</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <section class="lg:col-span-7 space-y-4">
+                <div class="bg-slate-900 rounded-3xl shadow-xl border border-slate-800 overflow-hidden relative group p-2">
+                    <div class="relative w-full aspect-[16/10] bg-slate-950 rounded-2xl flex items-center justify-center overflow-hidden">
+                        <video id="webcam" class="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-[1.005] transition-transform duration-500" autoplay playsinline muted></video>
+                        <canvas id="canvas" class="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none"></canvas>
+
+                        <div id="webcam-fallback" class="absolute inset-0 w-full h-full bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-4 hidden z-20">
+                            <i class="fa-solid fa-video-slash text-5xl text-slate-700 animate-pulse"></i>
+                            <span class="text-sm font-semibold tracking-wide">Umpan Kamera Dinonaktifkan</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-5 space-y-6">
+                <div class="bg-white p-8 rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-100/50 text-center space-y-6">
+                    <p class="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Prediction Dashboard</p>
+
+                    <div class="space-y-1 bg-slate-50 py-6 px-4 rounded-2xl border border-slate-100">
+                        <h1 id="prediction-text" class="text-4xl font-black text-indigo-600 tracking-tight">PREDIKSI: -</h1>
+                        <p id="confidence-text" class="text-xs font-semibold text-slate-400 flex items-center justify-center gap-1.5 mt-2">
+                            <i class="fa-solid fa-circle-info text-slate-400"></i> Menunggu inisialisasi pipeline model...
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                        
+                        <button id="btn-toggle-mode" class="flex items-center gap-3 p-3.5 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-700 rounded-2xl font-bold text-xs transition-all duration-200 text-left border border-indigo-100">
+                            <span class="w-8 h-8 bg-indigo-600 text-white rounded-xl flex items-center justify-center text-[11px] shadow-sm shadow-indigo-200">
+                                <i class="fa-solid fa-exchange-alt"></i>
+                            </span>
+                            <div>
+                                <p class="text-slate-900">Mode: Kata</p>
+                                <p class="text-[9px] text-indigo-500 font-medium">Ubah ke Huruf/Angka</p>
+                            </div>
+                        </button>
+
+                        <button id="btn-reset-prediction" class="flex items-center gap-3 p-3.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-2xl font-bold text-xs transition-all duration-200 text-left border border-slate-200/60">
+                            <span class="w-8 h-8 bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center text-[11px]">
+                                <i class="fa-solid fa-rotate"></i>
+                            </span>
+                            <div>
+                                <p class="text-slate-900">Ulangi Prediksi</p>
+                                <p class="text-[9px] text-slate-500 font-medium">Bersihkan buffer</p>
+                            </div>
+                        </button>
+
+                        <button id="btn-toggle-camera" class="flex items-center gap-3 p-3.5 bg-red-50 hover:bg-red-100/80 text-red-700 rounded-2xl font-bold text-xs transition-all duration-200 text-left w-full sm:col-span-2 border border-red-100">
+                            <span id="toggle-camera-icon-bg" class="w-8 h-8 bg-red-600 text-white rounded-xl flex items-center justify-center text-[11px] shadow-sm shadow-red-200">
+                                <i id="toggle-camera-icon" class="fa-solid fa-video"></i>
+                            </span>
+                            <div>
+                                <p id="toggle-camera-text" class="text-slate-900">Hentikan Kamera</p>
+                                <p id="toggle-camera-subtext" class="text-[9px] text-red-500 font-medium">Matikan tangkapan sensor</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-100/50 space-y-4">
+                    <h3 class="font-extrabold text-xs text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Riwayat Terjemahan Sekuensial</span>
+                        <button id="btn-clear-history" class="text-[11px] text-brand-purple hover:text-indigo-700 font-bold transition">
+                            <i class="fa-solid fa-trash-can mr-1"></i>Bersihkan
+                        </button>
+                    </h3>
+                    <div id="history-log" class="divide-y divide-slate-100 max-h-36 overflow-y-auto text-xs font-semibold text-slate-700 pr-1 custom-scrollbar">
+                        <div class="py-4 text-center text-slate-400 text-[11px] italic">Belum ada isyarat yang divalidasi</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <section id="fitur" class="max-w-7xl mx-auto px-6 py-20 scroll-mt-24">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
+                Keunggulan <span class="bg-gradient-to-r from-brand-purple to-brand-blue bg-clip-text text-transparent">Arsitektur</span>
+            </h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="bg-white rounded-3xl p-8 shadow-xl shadow-slate-100/80 border border-slate-100 text-center space-y-4 transform hover:-translate-y-1 transition duration-300">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-brand-purple flex items-center justify-center text-2xl mx-auto shadow-sm"><i class="fa-solid fa-bolt"></i></div>
+                <h3 class="text-lg font-extrabold text-slate-900">Inference Real-time</h3>
+                <p class="text-slate-500 text-sm leading-relaxed">Ekstraksi fitur geometris sekuensial dikirim langsung menuju pipeline kecerdasan buatan tanpa penundaan waktu yang berarti.</p>
+            </div>
+            <div class="bg-white rounded-3xl p-8 shadow-xl shadow-slate-100/80 border border-slate-100 text-center space-y-4 transform hover:-translate-y-1 transition duration-300">
+                <div class="w-14 h-14 rounded-2xl bg-blue-50 text-brand-blue flex items-center justify-center text-2xl mx-auto shadow-sm"><i class="fa-solid fa-brain"></i></div>
+                <h3 class="text-lg font-extrabold text-slate-900">Dual Deep Network</h3>
+                <p class="text-slate-500 text-sm leading-relaxed">Menggunakan integrasi model MLP untuk abjad statis tunggal serta model spasio-temporal CNN-LSTM untuk frasa dinamis.</p>
+            </div>
+            <div class="bg-white rounded-3xl p-8 shadow-xl shadow-slate-100/80 border border-slate-100 text-center space-y-4 transform hover:-translate-y-1 transition duration-300">
+                <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl mx-auto shadow-sm"><i class="fa-solid fa-shield"></i></div>
+                <h3 class="text-lg font-extrabold text-slate-900">Isolasi Privasi Lokal</h3>
+                <p class="text-slate-500 text-sm leading-relaxed">Gambar kamera diproses utuh di sisi klien. Server hanya menerima ekstraksi koordinat matriks numerik instan.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="panduan" class="max-w-7xl mx-auto px-6 py-20 scroll-mt-24">
+        <div class="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
+            <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-indigo-500/10 rounded-full blur-xl"></div>
+            <div class="relative z-10 max-w-3xl space-y-8">
+                <div class="space-y-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-indigo-300">SOP Operasional</span>
+                    <h2 class="text-3xl md:text-4xl font-black tracking-tight">Panduan Operasional Deteksi</h2>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-sm shrink-0 border border-indigo-500/30">1</div>
+                        <p class="text-slate-300 text-sm leading-relaxed"><strong class="text-white block mb-0.5">Pilih Mode Kerja:</strong> Gunakan opsi tombol kontrol untuk berpindah dari model statis (ejaan huruf) ke model sekuensial dinamis (kata).</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-sm shrink-0 border border-indigo-500/30">2</div>
+                        <p class="text-slate-300 text-sm leading-relaxed"><strong class="text-white block mb-0.5">Penempatan Posisi:</strong> Pastikan seluruh area telapak tangan hingga pergelangan (*wrist*) masuk ke dalam bingkai kamera.</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-sm shrink-0 border border-indigo-500/30">3</div>
+                        <p class="text-slate-300 text-sm leading-relaxed"><strong class="text-white block mb-0.5">Mekanisme Durasi:</strong> Tahan posisi tangan isyarat Anda selama minimal 10 frame (±1-2 detik) hingga algoritma *PredictionSmoother* memvalidasi teks output.</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-sm shrink-0 border border-indigo-500/30">4</div>
+                        <p class="text-slate-300 text-sm leading-relaxed"><strong class="text-white block mb-0.5">Variasi Jarak:</strong> Jaga jarak ideal tangan berkisar antara 30cm hingga 1 meter dari sensor webcam dengan pencahayaan ruang yang memadai.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="tentang" class="max-w-7xl mx-auto px-6 py-20 scroll-mt-24">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            <div class="lg:col-span-5 space-y-4">
+                <span class="text-xs font-bold uppercase tracking-widest text-indigo-600">Alur Framework</span>
+                <h2 class="text-4xl font-black text-slate-900 tracking-tight">Metodologi Ujung-ke-Ujung</h2>
+                <p class="text-slate-600 text-sm leading-relaxed">
+                    Sistem mengimplementasikan penormalan spasial independen di mana seluruh titik koordinat sendi direduksi secara relatif terhadap koordinat pergelangan tangan (*wrist*), menjadikannya kebal terhadap pergeseran lokasi pengguna (*translation invariant*).
+                </p>
+            </div>
+            <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm space-y-2">
+                    <h4 class="font-extrabold text-slate-900 text-base flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i> Wrist Alignment</h4>
+                    <p class="text-slate-500 text-xs leading-relaxed">Mengurangi koordinat titik sendi jari $1-21$ menggunakan titik $0$ agar terpusat pada nilai asal matriks.</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm space-y-2">
+                    <h4 class="font-extrabold text-slate-900 text-base flex items-center gap-2"><i class="fa-solid fa-arrow-down-1-9 text-indigo-500"></i> Forward Fill Imputation</h4>
+                    <p class="text-slate-500 text-xs leading-relaxed">Menyalin otomatis koordinat valid sebelumnya jika tangan pengguna mengalami gangguan halangan visual (occlusion).</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm space-y-2">
+                    <h4 class="font-extrabold text-slate-900 text-base flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-500"></i> Majority Voting</h4>
+                    <p class="text-slate-500 text-xs leading-relaxed">Proses *smoothing* prediksi akhir menggunakan akumulasi modus mayoritas dari 10 frame berurutan.</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm space-y-2">
+                    <h4 class="font-extrabold text-slate-900 text-base flex items-center gap-2"><i class="fa-solid fa-arrow-up-right-from-square text-indigo-500"></i> Locked Orientation</h4>
+                    <p class="text-slate-500 text-xs leading-relaxed">Memisahkan pemetaan array berdasarkan penanda biologis MediaPipe (0-20 Kiri, 21-41 Kanan) secara absolut.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-slate-900 text-white pt-12 pb-8 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-6 text-center text-sm text-slate-400 space-y-2">
+            <p>&copy; 2026 VisiSign AI Project. Pemrosesan Fitur Geometris Berkecepatan Tinggi.</p>
+            <p class="text-xs text-slate-600">Teknik Informatika — Pemrosesan Citra Digital & Jaringan Saraf Tiruan.</p>
+        </div>
+    </footer>
+
+    <script>
+        window.addEventListener('load', () => {
+            const videoElement = document.getElementById('webcam');
+            const fallbackUI = document.getElementById('webcam-fallback');
+            const toggleCamBtn = document.getElementById('btn-toggle-camera');
+            const toggleIcon = document.getElementById('toggle-camera-icon');
+            const toggleText = document.getElementById('toggle-camera-text');
+            
+            // Elemen Navigasi Navbar
+            const btnHamburger = document.getElementById('btn-hamburger');
+            const navMobile = document.getElementById('nav-mobile');
+            const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+
+            let cameraInstance = null;
+            let cameraActive = true;
+
+            // =========================================================================
+            // PERBAIKAN UTAMA: Manajemen Navigasi (Hamburger & Smooth Scrolling Click)
+            // =========================================================================
+            if (btnHamburger && navMobile) {
+                btnHamburger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    navMobile.classList.toggle('hidden');
+                });
+
+                // Tutup menu mobile ketika pengguna mengklik link tujuan
+                mobileNavLinks.forEach(link => {
+                    link.addEventListener('click', () => {
+                        navMobile.classList.add('hidden');
+                    });
+                });
+
+                // Tutup menu mobile jika pengguna mengklik area di luar navbar drawer
+                document.addEventListener('click', (e) => {
+                    if (!navMobile.classList.contains('hidden') && !e.target.closest('nav')) {
+                        navMobile.classList.add('hidden');
+                    }
+                });
+            }
+
+            // =========================================================================
+            // MANAJEMEN LIVE WEBCAM PIPELINE
+            // =========================================================================
+            if (videoElement) {
+                cameraInstance = new Camera(videoElement, {
+                    onFrame: async () => {
+                        if (window.hands && cameraActive) {
+                            await window.hands.send({ image: videoElement });
+                        }
+                    },
+                    width: 640,
+                    height: 480
+                });
+                
+                cameraInstance.start()
+                    .then(() => console.log("Hardware sensor kamera aktif."))
+                    .catch(err => {
+                        console.error("Gagal akses hardware kamera: ", err);
+                        fallbackUI.classList.remove('hidden');
+                    });
+            }
+
+            // Kontrol Tombol On/Off Sensor Kamera Real-time
+            if (toggleCamBtn) {
+                toggleCamBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (cameraActive) {
+                        cameraActive = false;
+                        if (videoElement.srcObject) {
+                            videoElement.srcObject.getTracks().forEach(track => track.stop());
+                        }
+                        fallbackUI.classList.remove('hidden');
+                        
+                        toggleText.innerText = "Aktifkan Kamera";
+                        toggleIcon.className = "fa-solid fa-video-slash";
+                        toggleCamBtn.classList.replace('bg-red-50', 'bg-emerald-50');
+                        toggleCamBtn.classList.replace('text-red-700', 'text-emerald-700');
+                        toggleCamBtn.classList.replace('border-red-100', 'border-emerald-100');
+                        document.getElementById('toggle-camera-icon-bg').className = "w-8 h-8 bg-emerald-600 text-white rounded-xl flex items-center justify-center text-[11px]";
+                    } else {
+                        cameraActive = true;
+                        fallbackUI.classList.add('hidden');
+                        cameraInstance.start();
+                        
+                        toggleText.innerText = "Hentikan Kamera";
+                        toggleIcon.className = "fa-solid fa-video";
+                        toggleCamBtn.classList.replace('bg-emerald-50', 'bg-red-50');
+                        toggleCamBtn.classList.replace('text-emerald-700', 'text-red-700');
+                        toggleCamBtn.classList.replace('border-emerald-100', 'border-red-100');
+                        document.getElementById('toggle-camera-icon-bg').className = "w-8 h-8 bg-red-600 text-white rounded-xl flex items-center justify-center text-[11px]";
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
